@@ -20,7 +20,8 @@ class App:
     def __init__(self):
 
         # Start the parser
-        self.text = mitype.commandline.main()
+        self.text = mitype.commandline.main()[0]
+        self.text_id = mitype.commandline.main()[1]
         self.tokens = self.text.split()
 
         # Convert multiple spaces, tabs, newlines to single space
@@ -75,8 +76,8 @@ class App:
             # Typing mode
             key = self.keyinput(win)
 
-            # Exit when escape key is pressed
-            if mitype.keycheck.is_escape(key):
+            # Exit when escape key is pressed and test hasn't started
+            if mitype.keycheck.is_escape(key) and self.start_time == 0:
                 sys.exit(0)
 
             # Test mode
@@ -120,12 +121,13 @@ class App:
             mitype.calculations.number_of_lines_to_fit_string_in_window(
                 self.text, self.window_width
             )
-            + 2
-            + 1
+            + 2  # Top 2 lines
+            + 1  # One empty line after text
         )
 
         # If required number of lines are more than the window height, exit
-        if self.line_count > self.window_height:
+        # +3 for printing stats at the end of the test
+        if self.line_count + 3 > self.window_height:
             self.size_error()
 
         curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_GREEN)
@@ -161,6 +163,10 @@ class App:
         """
 
         # Top strip
+        # Display text ID
+        win.addstr(0, 0, " ID:{} ".format(self.text_id), curses.color_pair(3))
+
+        # Display Title
         win.addstr(0, int(self.window_width / 2) - 4, " MITYPE ", curses.color_pair(3))
 
         # Print text in BOLD from 3rd line
@@ -177,9 +183,9 @@ class App:
                           KEY_UP or ^G.
         """
 
-        # Exit on escape
+        # Reset test
         if mitype.keycheck.is_escape(key):
-            sys.exit(0)
+            self.reset_test()
 
         # Handle resizing
         elif mitype.keycheck.is_resize(key):
@@ -286,6 +292,15 @@ class App:
             self.start_time = 0
         win.refresh()
 
+    def reset_test(self):
+        self.current_word = ""
+        self.current_string = ""
+        self.first_key_pressed = False
+        self.key_strokes = []
+        self.start_time = 0
+        self.i = 0
+        self.current_speed_wpm = 0
+
     def replay(self, win):
 
         win.addstr(self.line_count + 2, 0, " " * self.window_width)
@@ -323,7 +338,6 @@ class App:
                     i -= 1
                 text = text[:i] + " " * (x * width - i) + text[i + 1 :]
         return text
-
 
     def resize(self, win):
         win.clear()
